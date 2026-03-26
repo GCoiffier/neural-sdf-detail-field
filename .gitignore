@@ -209,3 +209,4 @@ __marimo__/
 .vscode
 .code-workspace
 trained_models/
+results_1_sided/

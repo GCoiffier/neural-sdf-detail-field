@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../neural_implicit_lab/implicitlab"
+		}
+	],
+	"settings": {}
+}

@@ -38,11 +38,13 @@ class GradientCorrectionTrainer(Trainer):
     def forward_train_batch(self, data, model):
         X_on, X_in, X_out = data
         Y_on, Y_in, Y_out = model(X_on), model(X_in), model(X_out)
-        # X_noise = X_on + torch.randn_like(X_on)/10.
-        # X_noise.requires_grad = True
-        # Y_noise = model(X_noise)
-        # loss_gdmax = torch.sum(-Y_noise)
-        return torch.sum(self.lossfun(Y_out)) + torch.sum(self.lossfun(-Y_in)) + self.attach_weight*torch.sum(Y_on**2) #+ 0.1*loss_gdmax
+        
+        X_noise = X_on + torch.randn_like(X_on)*1e-3
+        X_noise.requires_grad = True
+        Y_noise = model(X_noise)
+        loss_gdmax = torch.sum(-Y_noise)
+        
+        return torch.sum(self.lossfun(Y_out)) + torch.sum(self.lossfun(-Y_in)) + self.attach_weight*torch.sum(Y_on**2) + 0.1*loss_gdmax
     
     # def forward_train_batch(self, data, model):
     #     X_on, _,_ = data
@@ -54,8 +56,15 @@ class GradientCorrectionTrainer(Trainer):
     #     return  0.1*loss_gdmax + self.attach_weight*torch.sum(Y_on**2)
 
     def sample_points(self, model):
-        sampler = IL.PointSampler(self.geom, IL.sampling_strategy.UniformBox(self.geom), NeuralSDFValues(model, self.config.DEVICE))
-        points, vals = sampler.sample(5*self.n_points, on_ratio=0)
+        sampler = IL.PointSampler(
+            self.geom, 
+            IL.sampling_strategy.CombinedStrategy(
+                [IL.sampling_strategy.UniformBox(self.geom),
+                 IL.sampling_strategy.UniformBox(self.geom, M.geometry.AABB([-1.]*self.geom.dim, [1.]*self.geom.dim))],
+                [1.,3.]), 
+            NeuralSDFValues(model, self.config.DEVICE)
+        )
+        points, vals = sampler.sample(10*self.n_points, on_ratio=0)
         vals = np.squeeze(vals)
         # pc = M.mesh.from_arrays(points)
         # pc.vertices.register_array_as_attribute("val", vals)

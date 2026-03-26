@@ -14,6 +14,9 @@ class ImplicitRepresentation:
         self.detail_model = detail_model
 
     def __call__(self, x):
-        if self.detail_model is not None:
-            return self.neural_model(x) + self.detail_model(x)
-        return self.neural_model(x)
+        with torch.no_grad():
+            if self.detail_model is not None:
+                neur = self.neural_model(x)
+                det = self.detail_model(x.cpu().numpy())
+                return neur + torch.Tensor(det).to(neur.device)
+            return self.neural_model(x)

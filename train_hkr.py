@@ -66,6 +66,7 @@ if __name__ == "__main__":
 
     ####### Dataset Sampling
     train_field = IL.fields.Occupancy(geometry, v_in=-1, v_out=1, v_on=-1)
+    # train_field = IL.fields.WindingNumber(geometry)
     train_sampling_strat = IL.sampling_strategy.CombinedStrategy([
         IL.sampling_strategy.UniformBox(geometry),
         IL.sampling_strategy.NearGeometryGaussian(geometry, 0.02)
@@ -90,7 +91,6 @@ if __name__ == "__main__":
     pc = M.mesh.from_arrays(points)
     pc.vertices.register_array_as_attribute("occ", val)
     M.mesh.save(pc, os.path.join(OUTPUT_DIR, "train_pts.geogram_ascii"))
-
 
     ####### Training
     model = io.initialize_model(metadata).to(DEVICE)
@@ -127,7 +127,11 @@ if __name__ == "__main__":
     if geometry.dim == 2:
         trainer.add_callbacks(callbacks.Render2DCB(OUTPUT_DIR, args.n_epochs))
     elif geometry.dim == 3:
-        trainer.add_callbacks(callbacks.MarchingCubeCB(OUTPUT_DIR, args.n_epochs, res=200, iso=[-args.margin/2, 0]))
+        if isinstance(geometry, M.mesh.SurfaceMesh):
+            domain = M.geometry.AABB.of_mesh(geometry, 0.1)
+        else:
+            domain = None
+        trainer.add_callbacks(callbacks.MarchingCubeCB(OUTPUT_DIR, args.n_epochs, res=200, domain=domain, iso=[-args.margin/2, 0]))
 
     trainer.set_training_data(train_data)
     trainer.train(model)

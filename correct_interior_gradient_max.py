@@ -10,7 +10,7 @@ from torch.nn import functional as F
 import implicitlab as IL
 from implicitlab.training import TrainingConfig, callbacks
 
-from src import GradientCorrectionTrainer, MetaData, io
+from src import GradientCorrectionTrainer, MaxValueTrainer, MetaData, io
 
 if __name__ == "__main__":
 
@@ -36,14 +36,17 @@ if __name__ == "__main__":
         if not answer.lower()=="y": exit()
 
     geometry = IL.data.load_geometry(os.path.join(args.folder, "input_geometry.obj"))
-    model = io.load_model(args.folder, DEVICE, ignore_detail_field=True)
+    model = io.load_model(args.folder, DEVICE, ignore_grad_correct=True, ignore_detail_field=True)
+    ref_model = io.load_model(args.folder, DEVICE, ignore_grad_correct=True, ignore_detail_field=True)
+    ref_model.trainable = False
+
+    points = IL.data.OnGeometryPointSampler(geometry).sample(args.n_points)
+    dataset = IL.data.make_tensor_dataset((points,), DEVICE)
 
     ###### Initialize training
-    trainer = GradientCorrectionTrainer(
+    trainer = MaxValueTrainer(
         geometry,
-        model, 
-        args.n_points,
-        args.spacing,
+        ref_model,
         TrainingConfig(
             BATCH_SIZE = args.batch_size,
             TEST_BATCH_SIZE = 5000,
@@ -51,14 +54,15 @@ if __name__ == "__main__":
             LEARNING_RATE = args.learning_rate,
             OPTIMIZER = args.optimizer,
             DEVICE = DEVICE,
-        ))
+    ))
+    trainer.set_training_data(dataset)
+
 
     if metadata.geometry_dim == 3:
         trainer.add_callbacks( callbacks.MarchingCubeCB(args.folder, args.n_epochs, res=300, iso=[0.], prefix="grad_correct") )
     else:
         trainer.add_callbacks( callbacks.Render2DCB(args.folder, args.n_epochs//2, prefix="grad_correct"))
     trainer.add_callbacks(callbacks.LoggerCB(os.path.join(args.folder, "grad_correct_training_log.txt")))
-    M.mesh.save(trainer.point_cloud, os.path.join(args.folder, "points_gradient_correction.geogram_ascii"))
 
     ###### Run training
     trainer.train(model)

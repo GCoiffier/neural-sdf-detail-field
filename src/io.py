@@ -13,23 +13,27 @@ def initialize_model(md : MetaData):
     return model
 
 
-def load_model(folder_path:str, device: str):
+def load_model(folder_path:str, device: str, ignore_grad_correct: bool = False, ignore_detail_field: bool = False):
     """
     Reads a metadata file inside the given folder, and loads
     """
-    meta : MetaData = MetaData.load(os.path.join(folder_path, "metadata.toml"))
+    print("FOLDER", folder_path)
+    meta : MetaData = MetaData.load_from_file(os.path.join(folder_path, "metadata.toml"))
 
     neural_model = initialize_model(meta).to(device)
-    if meta.gradient_corrected:
-        neural_model.load_state_dict(torch.load(os.path.join(folder_path, "weights_gradient_corrected.pt")))
+    if meta.gradient_corrected and not ignore_grad_correct:
+        neural_model.load_state_dict(torch.load(os.path.join(folder_path, "weights_gradient_corrected.pt"), map_location=device))
     else:
-        neural_model.load_state_dict(torch.load(os.path.join(folder_path, "weights_final.pt")))
+        neural_model.load_state_dict(torch.load(os.path.join(folder_path, "weights_final.pt"), map_location=device))
 
+    if not meta.detail_field_computed or ignore_detail_field:
+        return neural_model
+    
     detail_field = None
     if meta.detail_field_computed:
         if meta.adaptative_support:
             raise NotImplementedError
         else:
-            detail_field = CompactSupportRBFInterpolant.load_from_file("rbf.pt")
+            detail_field = CompactSupportRBFInterpolant.load_from_file(os.path.join(folder_path, "rbf.pt"))
     return ImplicitRepresentation(neural_model, detail_field)
 

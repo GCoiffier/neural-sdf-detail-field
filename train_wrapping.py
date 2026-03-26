@@ -89,7 +89,7 @@ if __name__ == "__main__":
         trainer.add_callbacks( callbacks.Render2DCB(OUTPUT_DIR, args.resampling_freq))
     trainer.add_callbacks(
         callbacks.LoggerCB(os.path.join(OUTPUT_DIR, "training_log.txt")),
-        callbacks.CheckpointCB(OUTPUT_DIR, args.resampling_freq),
+        callbacks.CheckpointCB(OUTPUT_DIR, args.resampling_freq, only_weights=True),
         SaveTrainingPointsCB(OUTPUT_DIR, args.resampling_freq)
     )
 
@@ -97,5 +97,5 @@ if __name__ == "__main__":
     M.mesh.save(M.mesh.from_arrays(trainer.points["on"]), os.path.join(OUTPUT_DIR, "points_e0_on.xyz"))
     M.mesh.save(M.mesh.from_arrays(trainer.points["out"]), os.path.join(OUTPUT_DIR, "points_e0_out.xyz"))
     trainer.train(model)
-    torch.save(model.state_dict(),os.path.join(OUTPUT_DIR, "model_final.pt"))
+    torch.save(model.state_dict(),os.path.join(OUTPUT_DIR, "weights_final.pt"))
 

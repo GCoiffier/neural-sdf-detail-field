@@ -55,7 +55,7 @@ class MetaData:
             
             n_primitives = val_or_none(parser.get("detail_field", "n_primitives", fallback=None), int),
             support_size = val_or_none(parser.get("detail_field", "support_size", fallback=None), float),
-            adaptative_support = val_or_none(parser.get("detail_field", "adaptative_support", fallback=None), bool),
+            adaptative_support = parser.get("detail_field", "adaptative_support", fallback=None) == "True",
         )
 
 

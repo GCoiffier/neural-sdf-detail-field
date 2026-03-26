@@ -25,6 +25,7 @@ class NeuralWrappingTrainer(Trainer):
         self.attach_value: float = kwargs.get("attach_value", -1e-2)
         self.resample_margin: float = kwargs.get("margin", 1e-2)
         self.Xout_spread: float = kwargs.get("out_noise", 1e-3)
+        self.Xnear_spread: float = kwargs.get("near_noise", 1e-3)
 
         self.resample_surface : bool = resample_surface
         self.add_callbacks(ResampleOutsidePointsCallback(freq=resample_freq, margin=self.resample_margin))
@@ -67,11 +68,17 @@ class NeuralWrappingTrainer(Trainer):
         loss_attach = torch.sum((Yin-self.attach_value)**2)
         loss_hkr_out = torch.sum(-Yout)
 
-        Xaround = 1.5*F.normalize(torch.randn_like(Xin))
-        Yaround = model(Xaround)
-        loss_gdmax = torch.sum(-Yaround)
+        # Xnear = Xin + torch.randn_like(Xin)*self.Xnear_spread
+        # Xnear.requires_grad = True
+        # Ynear = model(Xnear)
+        # gd_near = IL.utils.gradient(Xnear, Ynear)
+        # loss_gdnorm = -gd_near.norm(dim=1).sum()
 
-        return loss_hkr_out + 2*self.attach_loss_weight*loss_attach + 0.1*loss_gdmax  
+        Xcircle = 1.5*F.normalize(torch.randn_like(Xin))
+        Ycircle = model(Xcircle)
+        loss_max_circle = torch.sum(-Ycircle)
+
+        return loss_hkr_out + 2*self.attach_loss_weight*loss_attach + 0.1*loss_max_circle # 0.1*loss_gdnorm
     
 
 
@@ -95,7 +102,7 @@ class ResampleOutsidePointsCallback(IL.training.Callback):
             n_points_out = 0
             points_out = []
             while n_points_out<n_points:
-                batch = IL.queries.sample_iso_raytraced(model, n_points, device=DEVICE, iso=self.margin, threshold=1e-4, max_iter=self.max_iter)
+                batch = IL.queries.sample_iso_raytraced(model, n_points, device=DEVICE, iso=0., threshold=1e-3, max_iter=self.max_iter)
                 points_out.append(batch)
                 n_points_out += batch.shape[0]
             points_out = np.concatenate(points_out)[:n_points, :]
