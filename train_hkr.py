@@ -43,7 +43,7 @@ if __name__ == "__main__":
     if len(args.output_dir)>0:
         OUTPUT_DIR = os.path.join("trained_models", args.output_dir)
     else:
-        OUTPUT_DIR = os.path.join("trained_models",  M.utils.get_filename(args.input_geometry_file)+"_hkr")
+        OUTPUT_DIR = os.path.join("trained_models",  M.utils.get_filename(args.input_geometry_file), "hkr")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Will save model in {OUTPUT_DIR} folder")
     M.mesh.save(geometry, os.path.join(OUTPUT_DIR, "input_geometry.obj"))
@@ -66,7 +66,6 @@ if __name__ == "__main__":
 
     ####### Dataset Sampling
     train_field = IL.fields.Occupancy(geometry, v_in=-1, v_out=1, v_on=-1)
-    # train_field = IL.fields.WindingNumber(geometry)
     train_sampling_strat = IL.sampling_strategy.CombinedStrategy([
         IL.sampling_strategy.UniformBox(geometry),
         IL.sampling_strategy.NearGeometryGaussian(geometry, 0.02)

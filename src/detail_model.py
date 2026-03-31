@@ -1,11 +1,3 @@
-import os, sys
-import mouette as M
-import numpy as np
-from scipy import sparse as sp
-from scipy.spatial import KDTree
-import torch
-from tqdm import tqdm
-
 class ImplicitRepresentation:
 
     def __init__(self, neural_model, detail_model):
@@ -14,9 +6,8 @@ class ImplicitRepresentation:
         self.detail_model = detail_model
 
     def __call__(self, x):
-        with torch.no_grad():
-            if self.detail_model is not None:
-                neur = self.neural_model(x)
-                det = self.detail_model(x.cpu().numpy())
-                return neur + torch.Tensor(det).to(neur.device)
-            return self.neural_model(x)
+        if self.detail_model is not None:
+            neural_v = self.neural_model(x)
+            detail_v = self.detail_model(x.cpu()).to(neural_v.device).reshape((neural_v.shape[0],1))
+            return neural_v + detail_v
+        return self.neural_model(x)

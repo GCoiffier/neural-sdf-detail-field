@@ -3,7 +3,7 @@ import implicitlab as IL
 import torch
 from .metadata import MetaData
 from .detail_model import ImplicitRepresentation
-from .rbf import CompactSupportRBFInterpolant
+from .rbf_torch import CompactSupportRBFInterpolantTorch
 
 def initialize_model(md : MetaData):
     if md.architecture_type == "bjorck" :
@@ -34,6 +34,6 @@ def load_model(folder_path:str, device: str, ignore_grad_correct: bool = False, 
         if meta.adaptative_support:
             raise NotImplementedError
         else:
-            detail_field = CompactSupportRBFInterpolant.load_from_file(os.path.join(folder_path, "rbf.pt"))
+            detail_field = CompactSupportRBFInterpolantTorch.load_from_file(os.path.join(folder_path, "rbf.pt"))
     return ImplicitRepresentation(neural_model, detail_field)
 

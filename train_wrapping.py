@@ -44,7 +44,7 @@ if __name__ == "__main__":
     if len(args.output_dir)>0:
         OUTPUT_DIR = os.path.join("trained_models", args.output_dir)
     else:
-        OUTPUT_DIR = os.path.join("trained_models",  M.utils.get_filename(args.input_geometry_file)+"_wrap")
+        OUTPUT_DIR = os.path.join("trained_models",  M.utils.get_filename(args.input_geometry_file), "wrap")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     M.mesh.save(geometry, os.path.join(OUTPUT_DIR, "input_geometry.obj")) # save input geometry (rescaled) in output folder
     

@@ -4,7 +4,7 @@ import argparse
 import implicitlab as IL
 import mouette as M
 
-from src import CompactSupportRBFInterpolant, AdaptativeSupportRBFInterpolant, MetaData, load_model, ImplicitRepresentation
+from src import CompactSupportRBFInterpolant, CompactSupportRBFInterpolantTorch, AdaptativeSupportRBFInterpolant, MetaData, load_model, ImplicitRepresentation
 from src.utils import NeuralSDFValues
 
 from tqdm import tqdm
@@ -14,7 +14,7 @@ from matplotlib import colors
 
 from scipy.spatial import KDTree
 
-def render_detail_field_2D(contour_path, detail_path, support_path, model, details, domain : M.geometry.AABB, device, res=1000, batch_size=1000):
+def render_detail_field_2D(contour_path, detail_path, support_path, model, details, domain : M.geometry.AABB, device, res=1000, batch_size=10_000):
     assert domain.dim == 2
 
     X = np.linspace(domain.mini[0], domain.maxi[0], res)
@@ -22,9 +22,11 @@ def render_detail_field_2D(contour_path, detail_path, support_path, model, detai
     Y = np.linspace(domain.mini[1], domain.maxi[1], resY)
 
     pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
-    dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size)
-    detail_values = details(pts)
-    total_values = np.concatenate(dist_values) + detail_values
+    dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
+    detail_values = IL.utils.forward_in_batches(details, pts, "cpu", compute_grad=False, batch_size=1_000_000, use_tqdm=True)
+    dist_values = np.squeeze(dist_values)
+    detail_values = np.squeeze(detail_values)
+    total_values = dist_values + detail_values
 
     if contour_path is not None:
         img = total_values.reshape((res,resY)).T
@@ -55,19 +57,33 @@ def render_detail_field_2D(contour_path, detail_path, support_path, model, detai
         img = img[::-1,:]
         img = np.abs(img)>1e-10
         plt.clf()
-        plt.imshow(img, cmap="bwr")
+        plt.imshow(img, cmap="Oranges")
         plt.axis("off")
         plt.savefig(support_path, bbox_inches='tight', pad_inches=0, dpi=200)
         
 
-def render_detail_field_3D(iso_path, support_path, model, details, domain : M.geometry.AABB, device, res=300, batch_size=10000):
+def render_detail_field_3D(iso_path, support_path, model, details, domain : M.geometry.AABB, device, res=300, batch_size=10_000, ignore_detail_threshold:float = 10.):
     print("Render final surface")
     assert domain.dim == 3
 
     L = [np.linspace(domain.mini[i], domain.maxi[i], res) for i in range(3)]
     pts = np.hstack((np.meshgrid(*L))).swapaxes(0,1).reshape(3,-1).T
-    detail_values = details(pts)
+    dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
+    dist_values = np.squeeze(dist_values)
+
+    low_dist = np.abs(dist_values)<ignore_detail_threshold
+    pts_low_dist = pts[low_dist,:]
+    n_detail = pts_low_dist.shape[0]
+    n_total = pts.shape[0]
+    print(f"Detail needed for {n_detail}/{n_total} points ({100*n_detail/n_total:.1f}%)")
+    detail_values_low_dist = IL.utils.forward_in_batches(details, pts_low_dist, "cpu", compute_grad=False, batch_size=1_000_000, use_tqdm=True)
     
+    detail_values = np.zeros_like(dist_values)
+    detail_values[low_dist] = detail_values_low_dist
+    
+    total_values = dist_values + detail_values
+
+
     if support_path is not None: 
         support_values = np.abs(detail_values)>1e-10
         support_values = support_values.reshape((res,res,res))
@@ -102,8 +118,6 @@ def render_detail_field_3D(iso_path, support_path, model, details, domain : M.ge
         del support_values
     
     if iso_path is not None: 
-        dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
-        total_values = np.concatenate(dist_values) + detail_values
         total_values = total_values.reshape((res,res,res))
         ### Call marching cubes
         verts,faces,normals,values = marching_cubes(total_values, level=0.)
@@ -199,6 +213,8 @@ if __name__ == "__main__":
     argument_parser.add_argument("--no-gradient-correction", action="store_true")
     argument_parser.add_argument("-a", "--adaptative-support", action="store_true")
     argument_parser.add_argument("-res", "--mc-resolution", type=int, default=300)
+    argument_parser.add_argument("-s", "--support-size", type=float, default=1.1)
+    argument_parser.add_argument("-prune", action="store_true")
     args = argument_parser.parse_args()
     DEVICE = IL.utils.get_device()
     print("Neural model will be loaded on the following device:", DEVICE)
@@ -237,29 +253,31 @@ if __name__ == "__main__":
         metadata.support_size = np.amax(sizes)
         print("Support size range:", "[", np.amin(sizes), ",", np.amax(sizes), "]")
     else:
-        support_size = 1.1*np.max(distances_to_levelset)
+        support_size = args.support_size*np.max(distances_to_levelset)
         # tree = KDTree(points)
         # KNN = tree.query(points, 10)[0]
         # distances_to_closest_RBF = KNN[:,-1]
         # print("Max distance to 10 closest RBF", np.amax(distances_to_closest_RBF))
 
-        rbf = CompactSupportRBFInterpolant(points, -val, alpha=support_size)
+        rbf = CompactSupportRBFInterpolantTorch(points, -val, alpha=support_size)
         metadata.adaptative_support = False
         metadata.support_size = support_size
         print("Support size:", support_size)
         
-
-    pc_init = M.mesh.from_arrays(points)
-    pc_init.vertices.register_array_as_attribute("ndf", val)
-    if metadata.adaptative_support:
-        pc_init.vertices.register_array_as_attribute("sizes", sizes)
-    M.mesh.save(pc_init, os.path.join(args.folder, "rbf_centers.geogram_ascii"))
     print("Number of basis functions:", args.n_points)
     print("Max error on sampled points:", np.max(np.abs(val)))
 
 
     rbf.run()
+    if args.prune:
+        rbf.prune(5e-4)
+
     rbf.save_to_file(os.path.join(args.folder, "rbf.pt"))
+    pc_init = M.mesh.from_arrays(rbf.points.numpy())
+    pc_init.vertices.register_array_as_attribute("ndf", rbf.values)
+    pc_init.vertices.register_array_as_attribute("weights", rbf.weights.detach().cpu().numpy())
+    M.mesh.save(pc_init, os.path.join(args.folder, "rbf_centers.geogram_ascii"))
+
     if metadata.geometry_dim == 2:
         plot_domain =  M.geometry.AABB([-1.5]*2, [1.5]*2)
         render_detail_field_2D(
@@ -273,7 +291,8 @@ if __name__ == "__main__":
         render_detail_field_3D(
             os.path.join(args.folder, "surface_with_details.obj"),
             os.path.join(args.folder, "RBF_support.obj"),
-            neural_model, rbf, plot_domain, DEVICE, res=args.mc_resolution, batch_size=10_000)
+            neural_model, rbf, plot_domain, DEVICE, res=args.mc_resolution, batch_size=10_000, 
+            ignore_detail_threshold = support_size)
         # render_rbf_support_3D(os.path.join(args.folder, "RBF_support.obj"), rbf, plot_domain.pad(0.1), res=200)
     metadata.detail_field_computed = True
     metadata.save_to_file(os.path.join(args.folder, "metadata.toml"))

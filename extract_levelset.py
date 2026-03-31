@@ -11,8 +11,7 @@ if len(sys.argv)>2:
     domain = M.geometry.AABB.of_mesh(geometry, 0.1)
 else:
     domain = M.geometry.AABB([-1.2]*3, [1.2]*3)
-data = IL.visualize.reconstruct_surface_marching_cubes(model, domain, DEVICE, res=300)
-for name, iso in data.items():
-    M.mesh.save(iso, "iso.obj")
 
-    
+data = IL.visualize.reconstruct_surface_marching_cubes(model, domain, DEVICE, iso=[0., 0.1, 0.2, 0.3], res=500)
+for name, iso in data.items():
+    M.mesh.save(iso, f"iso_{name}.obj")
