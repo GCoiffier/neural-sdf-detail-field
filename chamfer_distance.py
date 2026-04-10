@@ -45,4 +45,4 @@ if __name__ == "__main__":
     CD = ChamferDistance(orig_mesh, 1_000_000)
     d, pc = CD.run(target_mesh, True)
     print(d)
-    M.mesh.save(pc, "chamfer.geogram_ascii")
+    # M.mesh.save(pc, "chamfer.geogram_ascii")

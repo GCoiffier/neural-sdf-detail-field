@@ -125,7 +125,7 @@ if __name__ == "__main__":
     assert iP0 != iP1 and iP0 != iP2 and iP1 != iP2
 
     contour_path = os.path.join(args.path, "contours.png")
-    gradient_path = None # os.path.join(args.path, "gradient.png")
+    gradient_path = os.path.join(args.path, "gradient.png")
     no_detail_path = os.path.join(args.path, "no_details.png")
     support_path = os.path.join(args.path, "rbf_support.png")
 

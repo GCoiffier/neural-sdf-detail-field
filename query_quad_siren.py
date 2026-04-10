@@ -8,6 +8,10 @@ import implicitlab as IL
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+from src.io import load_model
+
+np.random.seed(42)
+
 def render_sdf_quad(render_path, contour_path, gradient_path, model, P0, P1, P2, device, res=800, batch_size=1000, **kwargs): 
     dx = P1 - P0
     dy = P2 - P0
@@ -90,7 +94,19 @@ if __name__ == "__main__":
     device = IL.utils.get_device(args.cpu)
     print("DEVICE:", device)
 
-    sdf = IL.nn.SirenNet(3, 256, 6).to(device)
+    # sdf = load_model(args.model, device)
+    # sdf = IL.nn.SirenNet(3, 400, 6).to(device)
+    # sdf = IL.nn.SirenNet(3, 128, 5).to(device)
+
+    geometry = IL.data.load_geometry("/home/gcoiffie/Code/Implicit_neural_representations/neural-sdf-detail-field/trained_models/Glykon/hkr/input_geometry.obj")
+    sdf = torch.nn.Sequential(
+        # IL.nn.encodings.HalfPlaneEncoding(geometry, 1000),
+        # IL.nn.encodings.PointDistanceEncoding(geometry, 1000),
+        IL.nn.encodings.RandomFourierEncoding(geometry, 1000),
+        # IL.nn.encodings.GaussianEncoding(geometry, 1000),
+        IL.nn.MultiLayerPerceptron(1000, 256, 10)
+    ).to(device)
+
     sdf.load_state_dict(torch.load(args.model))
 
     quad = M.mesh.load(args.quad)

@@ -22,11 +22,15 @@ def rbf2(r, a):
 
 def rbf3(r, a):
     r = r/a
-    return np.where(r>1, 0., np.pow(1-r,3)*(3*r+1))
+    return torch.where(r>1, 0., torch.pow(1-r,3)*(3*r+1))
 
 def rbf4(r, a):
     r = r/a
-    return np.where(r>1, 0., np.pow(1-r,4)*(4*r+1))
+    return torch.where(r>1, 0., torch.pow(1-r,4)*(4*r+1))
+
+def rbf5(r,a):
+    r = r/a
+    return torch.where(r>1, 0., torch.pow(1-r, 5.)*(5*r+1))
 
 
 class CompactSupportRBFInterpolantTorch(torch.nn.Module):
@@ -34,7 +38,7 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
     def __init__(self, points: np.ndarray, values: np.ndarray, alpha: float, **kwargs):
         super().__init__()
 
-        self.values = np.asarray(values)
+        self.values = torch.Tensor(values)
         self.alpha : float = alpha
         self.tree : KDTree = kwargs.get("tree", KDTree(points))
         self.points = torch.Tensor(points)
@@ -43,7 +47,7 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         shape = kwargs.get("rbf_shape", 1)
 
         self.rbf = lambda x : [
-            rbf0, rbf1, rbf2, rbf3, rbf4
+            rbf0, rbf1, rbf2, rbf3, rbf4, rbf5
         ][shape](x, self.alpha)
 
 
@@ -90,17 +94,23 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         t0 = time()
         print("[RBF] System's sparsity:", f"{A.nnz}/{N*N} ({100*A.nnz/N/N:.2f} %)")
         print("[RBF] Solve system...")
-        self.weights = sp.linalg.cg(A, self.values)[0]
+        self.weights = sp.linalg.cg(A, self.values.numpy())[0]
         # self.weights = sp.linalg.spsolve(A, self.values)
         print(f"[RBF] Solved in {time()-t0:.3f} seconds")
         self.points = torch.Tensor(self.points).to("cpu")
         self.weights = torch.Tensor(self.weights).to("cpu")
 
     def prune(self, threshold:float):
-        to_keep = torch.abs(self.weights)>threshold
+        to_keep = torch.abs(self.weights)>threshold #*torch.abs(self.values.squeeze())
         print(f"[RBF] Pruning basis functions with |weight|<{threshold}")
         
         n_init = self.points.shape[0]
+        tree_pruned : KDTree = KDTree(self.points[to_keep].numpy())
+        pts_numpy = self.points.numpy()
+        for i in trange(n_init):
+            if to_keep[i] and len(tree_pruned.query_ball_point(pts_numpy[i], self.alpha/1.1))<2:
+                to_keep[i] = False
+        
         self.points = self.points[to_keep]
         self.values = self.values[to_keep]
         self.tree = KDTree(self.points.numpy())
@@ -109,6 +119,7 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         print(f"[RBF] Removing {n_removed}/{n_init} basis functions ({100*n_removed/n_init:.1f}%)")
         print("[RBF] Recomputing weights")
         self.run()
+        # self.weights = self.weights[to_keep]
 
     
     def _query_tree(self, x):

@@ -14,6 +14,8 @@ from matplotlib import colors
 
 from scipy.spatial import KDTree
 
+np.random.seed(42)
+
 def render_detail_field_2D(contour_path, detail_path, support_path, model, details, domain : M.geometry.AABB, device, res=1000, batch_size=10_000):
     assert domain.dim == 2
 
@@ -23,7 +25,7 @@ def render_detail_field_2D(contour_path, detail_path, support_path, model, detai
 
     pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
     dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
-    detail_values = IL.utils.forward_in_batches(details, pts, "cpu", compute_grad=False, batch_size=1_000_000, use_tqdm=True)
+    detail_values = IL.utils.forward_in_batches(details, pts, "cpu", compute_grad=False, batch_size=500_000, use_tqdm=True)
     dist_values = np.squeeze(dist_values)
     detail_values = np.squeeze(detail_values)
     total_values = dist_values + detail_values
@@ -62,7 +64,7 @@ def render_detail_field_2D(contour_path, detail_path, support_path, model, detai
         plt.savefig(support_path, bbox_inches='tight', pad_inches=0, dpi=200)
         
 
-def render_detail_field_3D(iso_path, support_path, model, details, domain : M.geometry.AABB, device, res=300, batch_size=10_000, ignore_detail_threshold:float = 10.):
+def render_detail_field_3D(iso_path, support_path, model, details, domain : M.geometry.AABB, device, res, batch_size=10_000, ignore_detail_threshold:float = 10.):
     print("Render final surface")
     assert domain.dim == 3
 
@@ -76,7 +78,7 @@ def render_detail_field_3D(iso_path, support_path, model, details, domain : M.ge
     n_detail = pts_low_dist.shape[0]
     n_total = pts.shape[0]
     print(f"Detail needed for {n_detail}/{n_total} points ({100*n_detail/n_total:.1f}%)")
-    detail_values_low_dist = IL.utils.forward_in_batches(details, pts_low_dist, "cpu", compute_grad=False, batch_size=1_000_000, use_tqdm=True)
+    detail_values_low_dist = IL.utils.forward_in_batches(details, pts_low_dist, "cpu", compute_grad=False, batch_size=200_000, use_tqdm=True)
     
     detail_values = np.zeros_like(dist_values)
     detail_values[low_dist] = detail_values_low_dist
@@ -147,63 +149,6 @@ def render_detail_field_3D(iso_path, support_path, model, details, domain : M.ge
             mesh.vertices[v] = M.Vec(vx,vy,vz)
         M.mesh.save(mesh, iso_path)
     
-
-# def render_rbf_support_2D(file_path, rbf, domain, res=1000):
-#     print("Render RBF support")
-    
-#     X = np.linspace(domain.mini[0], domain.maxi[0], res)
-#     resY = round(res * domain.span[1]/domain.span[0])
-#     Y = np.linspace(domain.mini[1], domain.maxi[1], resY)
-
-#     pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
-#     kd_tree = KDTree(pts)
-
-#     near = kd_tree.query_ball_tree(rbf.tree, rbf.alpha)
-#     occupancy = np.array([len(near_i)>0 for near_i in near]).reshape((res,resY)).T
-#     occupancy = occupancy[::-1,:]
-#     plt.clf()
-#     plt.imshow(occupancy, cmap="bwr")
-#     plt.axis("off")
-#     plt.savefig(file_path, bbox_inches='tight', pad_inches=0, dpi=200)
-
-
-# def render_rbf_support_3D(file_path, rbf, domain : M.geometry.AABB, res=300):
-#     print("Render RBF support")
-#     L = [np.linspace(domain.mini[i], domain.maxi[i], res) for i in range(3)]
-#     pts = np.hstack((np.meshgrid(*L))).swapaxes(0,1).reshape(3,-1).T
-#     kd_tree = KDTree(pts)
-
-#     near = kd_tree.query_ball_tree(rbf.tree, rbf.alpha)
-#     occupancy = np.array([len(near_i)>0 for near_i in near]).reshape((res,res,res))
-    
-#     ### Call marching cubes
-#     verts,faces,normals,values = marching_cubes(occupancy, level=0)
-#     values = values[:, np.newaxis]
-#     mesh = M.mesh.RawMeshData()
-#     mesh.vertices += list(verts)
-#     mesh.faces += list(faces)
-#     mesh = M.mesh.SurfaceMesh(mesh)
-#     normal_attr = mesh.vertices.create_attribute("normals", float, 3, dense=True)
-#     normal_attr._data = normals
-#     values_attr = mesh.vertices.create_attribute("values", float, 1, dense=True)
-#     values_attr._data = values
-    
-#     ### Reproject meshes to correct coordinates
-#     for v in mesh.id_vertices:
-#         pV = M.Vec(mesh.vertices[v])
-#         ix, iy, iz = int(pV.x), int(pV.y), int(pV.z)
-#         dx, dy, dz = pV.x%1, pV.y%1, pV.z%1
-
-#         ixn = ix+1 if ix<res-1 else res-1
-#         iyn = iy+1 if iy<res-1 else res-1
-#         izn = iz+1 if iz<res-1 else res-1
-
-#         vx = (1-dx)*L[0][ix] + dx * L[0][ixn]
-#         vy = (1-dy)*L[1][iy] + dy * L[1][iyn]
-#         vz = (1-dz)*L[2][iz] + dz * L[2][izn]
-#         mesh.vertices[v] = M.Vec(vx,vy,vz)
-#     M.mesh.save(mesh, file_path)
-
 if __name__ == "__main__":
 
     ###### Parse commandline arguments
@@ -214,7 +159,7 @@ if __name__ == "__main__":
     argument_parser.add_argument("-a", "--adaptative-support", action="store_true")
     argument_parser.add_argument("-res", "--mc-resolution", type=int, default=300)
     argument_parser.add_argument("-s", "--support-size", type=float, default=1.1)
-    argument_parser.add_argument("-prune", action="store_true")
+    argument_parser.add_argument("-prune", type=float, default=0.)
     args = argument_parser.parse_args()
     DEVICE = IL.utils.get_device()
     print("Neural model will be loaded on the following device:", DEVICE)
@@ -269,8 +214,8 @@ if __name__ == "__main__":
 
 
     rbf.run()
-    if args.prune:
-        rbf.prune(5e-4)
+    if args.prune>0.:
+        rbf.prune(args.prune)
 
     rbf.save_to_file(os.path.join(args.folder, "rbf.pt"))
     pc_init = M.mesh.from_arrays(rbf.points.numpy())
@@ -285,7 +230,6 @@ if __name__ == "__main__":
             os.path.join(args.folder, "detail_field.png"), 
             os.path.join(args.folder, "RBF_support.png"), 
             neural_model, rbf, plot_domain, DEVICE, res=1000, batch_size=5000)
-        # render_rbf_support_2D(os.path.join(args.folder, "rbf_support.png"), rbf, plot_domain, res=1000)
     elif metadata.geometry_dim == 3:
         plot_domain =  M.geometry.AABB.of_mesh(geometry).pad(0.1)
         render_detail_field_3D(
@@ -293,7 +237,6 @@ if __name__ == "__main__":
             os.path.join(args.folder, "RBF_support.obj"),
             neural_model, rbf, plot_domain, DEVICE, res=args.mc_resolution, batch_size=10_000, 
             ignore_detail_threshold = support_size)
-        # render_rbf_support_3D(os.path.join(args.folder, "RBF_support.obj"), rbf, plot_domain.pad(0.1), res=200)
     metadata.detail_field_computed = True
     metadata.save_to_file(os.path.join(args.folder, "metadata.toml"))
 
