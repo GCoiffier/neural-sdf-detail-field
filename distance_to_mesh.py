@@ -13,7 +13,7 @@ distances = np.abs(distances)
 print(np.max(distances))
 
 distances_attr = orig_mesh.vertices.register_array_as_attribute("dist", distances)
-M.attributes.uv_export.generate_uv_colormap_vertices(orig_mesh, distances_attr, 0., 0.005)
+M.attributes.uv_export.generate_uv_colormap_vertices(orig_mesh, distances_attr, 0., 0.01)
 
 if len(sys.argv)>3:
     M.mesh.save(orig_mesh, sys.argv[3])

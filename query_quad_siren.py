@@ -97,15 +97,18 @@ if __name__ == "__main__":
     # sdf = load_model(args.model, device)
     # sdf = IL.nn.SirenNet(3, 400, 6).to(device)
     # sdf = IL.nn.SirenNet(3, 128, 5).to(device)
+    sdf = IL.nn.SirenNet(3, 256, 6).to(device)
 
-    geometry = IL.data.load_geometry("/home/gcoiffie/Code/Implicit_neural_representations/neural-sdf-detail-field/trained_models/Glykon/hkr/input_geometry.obj")
-    sdf = torch.nn.Sequential(
-        # IL.nn.encodings.HalfPlaneEncoding(geometry, 1000),
-        # IL.nn.encodings.PointDistanceEncoding(geometry, 1000),
-        IL.nn.encodings.RandomFourierEncoding(geometry, 1000),
-        # IL.nn.encodings.GaussianEncoding(geometry, 1000),
-        IL.nn.MultiLayerPerceptron(1000, 256, 10)
-    ).to(device)
+    # geometry = IL.data.load_geometry("/home/gcoiffie/Code/Implicit_neural_representations/neural-sdf-detail-field/trained_models/Glykon/hkr/input_geometry.obj")
+    # sdf = torch.nn.Sequential(
+    #     # IL.nn.encodings.HalfPlaneEncoding(geometry, 1000),
+    #     # IL.nn.encodings.PointDistanceEncoding(geometry, 1000),
+    #     IL.nn.encodings.RandomFourierEncoding(geometry, 1000),
+    #     # IL.nn.encodings.GaussianEncoding(geometry, 1000),
+    #     IL.nn.MultiLayerPerceptron(1000, 256, 10)
+    # ).to(device)
+    
+    # sdf = IL.nn.DenseLipSDP(3, 128, 10).to(device)
 
     sdf.load_state_dict(torch.load(args.model))
 
