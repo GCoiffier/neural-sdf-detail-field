@@ -1,6 +1,5 @@
 import os
 import argparse
-
 import mouette as M
 import numpy as np
 import torch
@@ -8,11 +7,11 @@ import torch
 import implicitlab as IL
 from implicitlab.data import PointSampler
 from implicitlab.training import TrainingConfig, hKRTrainer, callbacks
-
-from src import MetaData, io
+from src import MetaData
 
 if __name__ == "__main__":
-
+    np.random.seed(42)
+    
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("input_geometry_file", type=str, help="path to the input geometry file. Supported file types are .obj, .mesh, .stl and .geogram_ascii")
     argument_parser.add_argument("-o", "--output-dir", type=str, default="", help="name of the output folder")
@@ -29,8 +28,6 @@ if __name__ == "__main__":
 
     argument_parser.add_argument("-nl", "--n-layers", type=int, default=10)
     argument_parser.add_argument("-ls", "--layer-size", type=int, default=128)
-    argument_parser.add_argument("-a", "--architecture", default="sdp", choices=["sdp", "bjorck"])
-
 
     ####### Prepare environment and load geometry
     args = argument_parser.parse_args()
@@ -41,9 +38,9 @@ if __name__ == "__main__":
     print("Read input geometry of type", geometry.geom_type)
     
     if len(args.output_dir)>0:
-        OUTPUT_DIR = os.path.join("trained_models", args.output_dir)
+        OUTPUT_DIR = os.path.join("output", args.output_dir)
     else:
-        OUTPUT_DIR = os.path.join("trained_models",  M.utils.get_filename(args.input_geometry_file), "hkr")
+        OUTPUT_DIR = os.path.join("output",  M.utils.get_filename(args.input_geometry_file), "hkr")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Will save model in {OUTPUT_DIR} folder")
     M.mesh.save(geometry, os.path.join(OUTPUT_DIR, "input_geometry.obj"))
@@ -51,16 +48,15 @@ if __name__ == "__main__":
     ####### Save metadata file
     metadata = MetaData(
         geometry_dim = geometry.dim,
-        training_type = "hkr",
-        architecture_type = args.architecture,
+        architecture_type = "SLL",
         n_layers = args.n_layers,
         layer_size = args.layer_size,
         n_epochs = args.n_epochs,
         optimizer = args.optimizer,
         learning_rate = args.learning_rate,
         n_sampled_points = args.n_points,
-        resampling_freq = 0,
-        n_resample = 0,
+        batch_size = args.batch_size,
+        test_batch_size = args.test_batch_size
     )
     metadata.save_to_file(os.path.join(OUTPUT_DIR, "metadata.toml"))
 
@@ -92,7 +88,7 @@ if __name__ == "__main__":
     M.mesh.save(pc, os.path.join(OUTPUT_DIR, "train_pts.geogram_ascii"))
 
     ####### Training
-    model = io.initialize_model(metadata).to(DEVICE)
+    model = IL.nn.DenseLipSDP(metadata.geometry_dim, metadata.layer_size, metadata.n_layers).to(DEVICE)
     print(f"Initialized neural network with {IL.nn.count_parameters(model)} parameters")
 
     # Setup trainer
@@ -109,7 +105,7 @@ if __name__ == "__main__":
 
     trainer = hKRTrainer(TrainingConfig(
         BATCH_SIZE=args.batch_size,
-        TEST_BATCH_SIZE=5000,
+        TEST_BATCH_SIZE=args.test_batch_size,
         N_EPOCHS=args.n_epochs,
         LEARNING_RATE=args.learning_rate,
         DEVICE=DEVICE,
@@ -130,9 +126,8 @@ if __name__ == "__main__":
             domain = M.geometry.AABB.of_mesh(geometry, 0.1)
         else:
             domain = None
-        trainer.add_callbacks(callbacks.MarchingCubeCB(OUTPUT_DIR, args.n_epochs, res=200, domain=domain, iso=[-args.margin/2, 0]))
+        trainer.add_callbacks(callbacks.MarchingCubeCB(OUTPUT_DIR, args.n_epochs, res=300, domain=domain, iso=0.))
 
     trainer.set_training_data(train_data)
     trainer.train(model)
-
     torch.save(model.state_dict(), os.path.join(OUTPUT_DIR, "weights_final.pt"))

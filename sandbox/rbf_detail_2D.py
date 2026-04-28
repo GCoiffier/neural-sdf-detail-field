@@ -1,37 +1,18 @@
-import os, sys
+import os
+import argparse
 import mouette as M
 import numpy as np
 from scipy import sparse as sp
 from scipy.spatial import KDTree
-import torch
-from tqdm import tqdm, trange
+from tqdm import tqdm
+
+import implicitlab as IL
 from time import time
+from tqdm import trange
 
-
-def rbf0(r, a):
-    r = r/a
-    return torch.where(r>1, 0., 1-r)
-
-def rbf1(r, a):
-    r = r/a
-    return torch.where(r>1., 0., torch.pow(1-r,2.))
-
-def rbf2(r, a):
-    r = r/a
-    return torch.where(r>1., 0., torch.pow(1-r,3.))
-
-def rbf3(r, a):
-    r = r/a
-    return torch.where(r>1, 0., torch.pow(1-r,3)*(3*r+1))
-
-def rbf4(r, a):
-    r = r/a
-    return torch.where(r>1, 0., torch.pow(1-r,4)*(4*r+1))
-
-def rbf5(r,a):
-    r = r/a
-    return torch.where(r>1, 0., torch.pow(1-r, 5.)*(5*r+1))
-
+import matplotlib.pyplot as plt
+from matplotlib import colors
+import torch
 
 class CompactSupportRBFInterpolantTorch(torch.nn.Module):
 
@@ -43,13 +24,6 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         self.tree : KDTree = kwargs.get("tree", KDTree(points))
         self.points = torch.Tensor(points)
         self.weights : torch.Tensor = None
-
-        shape = kwargs.get("rbf_shape", 1)
-
-        self.rbf = lambda x : [
-            rbf0, rbf1, rbf2, rbf3, rbf4, rbf5
-        ][shape](x, self.alpha)
-
 
     @classmethod
     def load_from_file(cls, file_path: str):
@@ -74,6 +48,9 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
     def n_points(self) -> int:
         return self.points.shape[0]
     
+    def rbf(self, r):
+        r = r/self.alpha
+        return torch.where(r>1., 0., torch.pow(1-r,2.))
 
     def run(self):
         N = self.n_points
@@ -143,19 +120,7 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         if not near_x: return 0.
         dist_values = torch.norm(self.points[near_x]-x, dim=1)
         return torch.sum(self.weights[near_x] * self.rbf(dist_values))
-
-    # def _evaluate_rbf_bulk(self, x):
-    #     n_queries = x.shape[0]
-    #     rbf_values = torch.zeros(n_queries)
-    #     query_tree = KDTree(x.detach().cpu().numpy())
-    #     near = query_tree.query_ball_tree(self.tree, self.alpha)
-    #     for i,near_i in enumerate(near):
-    #         if len(near_i)==0: continue
-    #         dist = torch.norm(self.points[near_i]-x[i], dim=1)
-    #         rbf_values[i] = torch.sum(self.weights[near_i] * self.rbf(dist))
-    #     return rbf_values
     
-
     def _evaluate_rbf_bulk(self, x):
         n_queries = x.shape[0]
         rbf_values = torch.zeros(n_queries)
@@ -173,3 +138,65 @@ class CompactSupportRBFInterpolantTorch(torch.nn.Module):
         rbf_values = torch.zeros(n_queries)
         rbf_values.index_add_(0,rows, values)
         return rbf_values
+
+
+
+OUTPUT_DIR = "RBF_output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+DEVICE = IL.utils.get_device()
+print("DEVICE:", DEVICE)
+
+argument_parser = argparse.ArgumentParser()
+argument_parser.add_argument("-n", "--n-points", type=int, default=3)
+argument_parser.add_argument("-s", "--support-size", type=float, default=0.5)
+args = argument_parser.parse_args()
+N_pts = args.n_points
+SUPPORT_SIZE = args.support_size
+
+PLOT_DOMAIN = M.geometry.AABB([-1,-0.5], [1.,0.5])
+X_centers = np.linspace(-0.7, 0.7, N_pts)
+# Y_centers = 0.1*np.sin(4*np.pi*X_centers)
+Y_centers = np.full_like(X_centers, fill_value=0.2)
+points = np.vstack((X_centers,Y_centers)).T
+SDF_VALUES = Y_centers # SDF function is dot(p, (0,1))
+
+rbf = CompactSupportRBFInterpolantTorch(points, -SDF_VALUES, SUPPORT_SIZE)
+rbf.run()
+w = rbf.weights.detach().numpy()
+print(f"RBF weights: min={np.min(w)} | max={np.max(w)} | mean={np.mean(w)}")
+
+resolution = 2000
+X = np.linspace(PLOT_DOMAIN.mini[0], PLOT_DOMAIN.maxi[0], resolution)
+resY = round(resolution * PLOT_DOMAIN.span[1]/PLOT_DOMAIN.span[0])
+Y = np.linspace(PLOT_DOMAIN.mini[1], PLOT_DOMAIN.maxi[1], resY)
+
+pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
+detail_values = rbf(torch.Tensor(pts)).detach().numpy()
+base_values = pts[:,1]
+total_values = base_values + detail_values
+
+img_base = base_values.reshape((resolution, resY)).T
+img_base = img_base[::-1,:]
+print(np.min(img_base), np.max(img_base))
+
+img_total = total_values.reshape((resolution,resY)).T
+img_total = img_total[::-1,:]
+
+
+plt.clf()
+norm = colors.TwoSlopeNorm(vmin=-1, vmax=1, vcenter=0)
+plt.imshow(img_total, cmap="bwr", norm=norm, extent=[np.min(X), np.max(X), np.min(Y), np.max(Y)], origin='upper')
+plt.axis("off")
+# cs = plt.contourf(X,-Y,img, levels=np.linspace(-0.1,0.1,11), cmap="seismic", extend="both")
+# cs.changed()
+plt.contour(img_base, levels=[0.], colors="red", linewidths=0.5, extent=[np.min(X), np.max(X), np.min(Y), np.max(Y)], origin='upper')
+plt.contour(img_total, levels=31, colors='k', linestyles="solid", linewidths=0.1, extent=[np.min(X), np.max(X), np.min(Y), np.max(Y)], origin='upper')
+plt.contour(img_total, levels=[0.], colors='k', linestyles="solid", linewidths=0.5, extent=[np.min(X), np.max(X), np.min(Y), np.max(Y)], origin='upper')
+
+plt.scatter(X_centers, Y_centers, s=5., marker="x", color="black")
+for i in range(N_pts):
+    plt.gca().add_patch(plt.Circle((X_centers[i], Y_centers[i]), rbf.alpha, color='b', fill=False))
+plt.gca().set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
+
+# plt.savefig(os.path.join(OUTPUT_DIR, f"contours_{SUPPORT_SIZE:.3f}.png"), bbox_inches='tight', pad_inches=0)
+plt.savefig(os.path.join(OUTPUT_DIR, f"contours.png"), bbox_inches='tight', pad_inches=0, dpi=300)

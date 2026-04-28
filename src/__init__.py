@@ -1,10 +1,8 @@
-from .wrapping_trainer import NeuralWrappingTrainer
-from .gradient_correction_trainer import GradientCorrectionTrainer
-from .gradient_correction_trainer_max import MaxValueTrainer
-from .rbf_numpy import CompactSupportRBFInterpolant, AdaptativeSupportRBFInterpolant
-from .rbf_torch import CompactSupportRBFInterpolantTorch
-from .detail_model import ImplicitRepresentation
-from .utils import SaveTrainingPointsCB
+from .rbf_numpy import CompactSupportRBFInterpolant_Numpy, AdaptativeSupportRBFInterpolant
+from .rbf import CompactSupportRBFInterpolant
+from .utils import SaveTrainingPointsCB, NeuralSDFValues
 from .metadata import MetaData
-from .io import load_model, initialize_model
-from .renderers import *
+from .io import load_model
+from .render import *
+from .trainers import *
+from .idf import SirenDisplacementField, KappaUpdateCallback

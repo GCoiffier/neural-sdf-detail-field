@@ -4,7 +4,7 @@ import argparse
 import implicitlab as IL
 import mouette as M
 
-from src import CompactSupportRBFInterpolantTorch, MetaData, load_model
+from src import CompactSupportRBFInterpolant, MetaData, load_model
 from src.utils import NeuralSDFValues
 from skimage.measure import marching_cubes
 
@@ -53,7 +53,7 @@ print(f"Detail needed for {n_detail}/{n_total} points ({100*n_detail/n_total:.1f
 
 for sigma in [0.1, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1., 2.]:
     print(f"\n\nSIGMA = {sigma}")
-    rbf = CompactSupportRBFInterpolantTorch(points, -val, alpha=sigma*support_size)
+    rbf = CompactSupportRBFInterpolant(points, -val, alpha=sigma*support_size)
     print("Support size:", sigma*support_size)
     
     print("Number of basis functions:", args.n_points)

@@ -6,8 +6,11 @@ from scipy.spatial import KDTree
 import torch
 from tqdm import tqdm
 
+"""
+Numpy version of the RBF field
+"""
 
-class CompactSupportRBFInterpolant(M.Worker):
+class CompactSupportRBFInterpolant_Numpy(M.Worker):
 
     def __init__(self, points: np.ndarray, values: np.ndarray, verbose:bool = True, **kwargs):
         super().__init__("CompactSupportRBF", verbose)

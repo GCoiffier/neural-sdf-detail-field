@@ -4,7 +4,7 @@ import argparse
 import implicitlab as IL
 import mouette as M
 
-from src import CompactSupportRBFInterpolantTorch, MetaData, load_model
+from src import CompactSupportRBFInterpolant, MetaData, load_model
 from src.utils import NeuralSDFValues
 
 from skimage.measure import marching_cubes
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     print("Number of basis functions:", args.n_points)
     print("Max error on sampled points:", np.max(np.abs(val)))
     for i_shape in range(1,6):
-        rbf = CompactSupportRBFInterpolantTorch(points, -val, alpha=support_size, rbf_shape=i_shape)
+        rbf = CompactSupportRBFInterpolant(points, -val, alpha=support_size, rbf_shape=i_shape)
         rbf.run()
         if args.prune>0.:
             rbf.prune(args.prune)

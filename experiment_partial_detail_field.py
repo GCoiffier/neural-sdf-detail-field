@@ -4,7 +4,7 @@ import argparse
 import implicitlab as IL
 import mouette as M
 
-from src import CompactSupportRBFInterpolantTorch, MetaData, load_model
+from src import CompactSupportRBFInterpolant, MetaData, load_model
 from src.utils import NeuralSDFValues
 
 from skimage.measure import marching_cubes
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     print("Compute RBF interpolation")
     support_size = sigma*np.max(distances_to_levelset)
-    rbf = CompactSupportRBFInterpolantTorch(points, -val, alpha=support_size)
+    rbf = CompactSupportRBFInterpolant(points, -val, alpha=support_size)
     metadata.adaptative_support = False
     metadata.support_size = support_size
     print("Support size:", support_size)
