@@ -33,23 +33,20 @@ Input data used in this project can be downloaded from:
 - Designs from user YahooJapan on thingiverse: [https://www.thingiverse.com/YahooJAPAN/designs](https://www.thingiverse.com/YahooJAPAN/designs)
 - Thingi10k: [https://ten-thousand-models.appspot.com/](https://ten-thousand-models.appspot.com/)
 
-Our code supports input in the form of `.stl`, `.obj`, `.ply`, `.mesh` and `.geogram_ascii` files.
+Our code supports input in the form of `.stl`, `.obj`, `.ply`, `.mesh` and `.geogram_ascii` files. Output meshes are given as `.obj` file while debug meshes are given as `.geogram_ascii` files, which are meant to be read by the [GraphiteThree](https://github.com/BrunoLevy/GraphiteThree) software.
 
 ## Running the code
 
 Running our code consists of two main parts:
-1) Train a neural implicit to approximate the signed distance field of the input geometry;
-2) Use our RBF field to correct this neural field to better account for surface details.
-
-#### Train the neural implicit
+#### 1. Train a neural implicit to approximate the signed distance field of the input geometry
 
 ```bash
 python train_hkr.py <path/to/input/mesh>
 ```
 
-This creates a folder `output/<geometry_name>/hkr` inside which the output will be written. Output meshes are given as wavefront .obj files. Debug meshes are provided as `.geogram_ascii` files. They are meant to be read by the [GraphiteThree](https://github.com/BrunoLevy/GraphiteThree) software. Run with the `-h` flag to see all commandline parameters and arguments.
+This trains a 1-Lipschitz neural network minimizing the hinge-Kantorovitch-Rubinstein loss as in [1]. The output will be written in a new folder named `output/<geometry_name>/hkr`. Output meshes are given as wavefront .obj files. Run with the `-h` flag to see all commandline parameters and arguments.
 
-#### Run the detail field
+#### 2. Compute a RBF field to correct this neural field to better account for surface details
 
 Once a neural field has been trained onto the input geometry, a detail field can be computed using this command:
 
@@ -87,12 +84,17 @@ python train_idf.py <path/to/input/mesh>
 
 ## References
 
-[1] _1-Lipschitz Neural Distance Fields_, G.Coiffier & L.Béthune (2024)
+[1] _1-Lipschitz Neural Distance Fields_, G.Coiffier & L.Béthune (2024),
+https://arxiv.org/abs/2407.09505
 
-[2] _Hotspot_
+[2] _HotSpot: Signed Distance Function Optimization with an Asymptotically Sufficient Condition_, Z. Wang et. al (2025)
+https://arxiv.org/abs/2411.14628, https://github.com/Galaxeaaa/HotSpot
 
-[3] _SIREN_
+[3] _Implicit Neural Representations with Periodic Activation Functions_, Sitzmann et al., 2020
+https://arxiv.org/abs/2006.09661
 
-[4] _RFF_
+[4] _Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains_, M. Tancik et al. (2020)
+https://arxiv.org/abs/2006.10739
 
-[5] _IDF_
+[5] _Geometry-Consistent Neural Shape Representation with Implicit Displacement Fields_, W. Yifan et al. (2022)
+https://openreview.net/forum?id=yhCp5RcZD7, https://github.com/yifita/idf
