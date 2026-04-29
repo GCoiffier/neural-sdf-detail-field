@@ -1,2 +1,5 @@
-implicitlab==0.1
-mouette==1.2.7.1
+implicitlab==0.1.4
+mouette==1.2.8
+torch
+matplotlib
+
