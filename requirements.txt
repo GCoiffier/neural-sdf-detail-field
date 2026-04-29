@@ -1,0 +1,2 @@
+implicitlab==0.1
+mouette==1.2.7.1

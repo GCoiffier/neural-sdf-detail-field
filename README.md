@@ -13,8 +13,8 @@ First clone the repository and create a python virtual environment:
 ```bash
 git clone https://github.com/GCoiffier/neural-sdf-detail-field.git
 cd neural-sdf-detail-field
-python -m venv neuraldetail
-source neuraldetail/bin/activate
+python -m venv inrdf
+source inrdf/bin/activate
 ```
 
 Then install the dependencies:
