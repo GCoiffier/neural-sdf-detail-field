@@ -3,7 +3,7 @@
 This repository contains the code accompanying our SGP 2026 publication:
 _Compactly supported detail field for high quality neural implicit surfaces_, Guillaume Coiffier & Justine Basselin.
 
-Here is a link to the project's page: _link_
+Here is a link to the project's page: [https://gcoiffier.github.io/publications/neural_detail_field/](https://gcoiffier.github.io/publications/neural_detail_field/)
 
 
 ## Installation / Environment setup
