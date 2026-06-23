@@ -22,7 +22,7 @@ Then install the dependencies:
 pip install -r requirements.txt
 ```
 
-This code has been tested under python 3.12 with pytorch 2.11 and cuda 13.0
+This code has been tested on a Ubuntu 24.04 with python 3.12, pytorch 2.11 and cuda 13.0
 
 ## Finding input data
 
