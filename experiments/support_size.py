@@ -44,7 +44,7 @@ res = args.mc_resolution
 L = [np.linspace(domain.mini[i], domain.maxi[i], res) for i in range(3)]
 pts = np.hstack((np.meshgrid(*L))).swapaxes(0,1).reshape(3,-1).T
 print("Compute neural output on the grid")
-dist_values = IL.utils.forward_in_batches(neural_model, pts, DEVICE, compute_grad=False, batch_size=10_000, use_tqdm=True)
+dist_values = IL.utils.forward_in_batches(neural_model, pts, DEVICE, compute_grad=False, batch_size=50_000, use_tqdm=True)
 dist_values = np.squeeze(dist_values)
 low_dist = np.abs(dist_values)<0.1
 pts_low_dist = pts[low_dist,:]
@@ -67,7 +67,7 @@ for sigma in [0.1, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1., 2.]:
 
     assert metadata.geometry_dim == 3      
     print("Compute detail output on the grid")
-    detail_values_low_dist = IL.utils.forward_in_batches(rbf, pts_low_dist, "cpu", compute_grad=False, batch_size=50_000, use_tqdm=True)
+    detail_values_low_dist = IL.utils.forward_in_batches(rbf, pts_low_dist, "cpu", compute_grad=False, batch_size=100_000, use_tqdm=True)
 
     detail_values = np.zeros_like(dist_values)
     detail_values[low_dist] = detail_values_low_dist
