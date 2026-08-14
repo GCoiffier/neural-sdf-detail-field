@@ -53,7 +53,7 @@ This trains a 1-Lipschitz neural network minimizing the hinge-Kantorovitch-Rubin
 Once a neural field has been trained onto the input geometry, a detail field can be computed using this command:
 
 ```bash
-python compute_detail_field.py output/<geometry_name>/hkr -nc 200000 -res 400
+python compute_detail_field.py output/<geometry_name>/hkr -nc 100000 -res 400
 ```
 
 where the first argument is the folder created by the previous script that contains all of the output files. The `-nc` argument specifies the number of basis functions to consider. Typical values range from 100k to 500k. The `-res` argument specifies the resolution of the final marching cube extraction (400 is usually enough). Run the `-h` flag for help about all commandline arguments.
