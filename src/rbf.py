@@ -7,7 +7,6 @@ import torch
 from tqdm import tqdm, trange
 from time import time
 
-
 def rbf0(r, a):
     r = r/a
     return torch.where(r>1, 0., 1-r)
@@ -138,18 +137,16 @@ class CompactSupportRBFInterpolant(torch.nn.Module):
         dist_values = torch.norm(self.points[near_x]-x, dim=1)
         return torch.sum(self.weights[near_x] * self.rbf(dist_values))
 
+
     def _evaluate_rbf_bulk(self, x):
         n_queries = x.shape[0]
         rbf_values = torch.zeros(n_queries)
-        # query_tree = KDTree(x.detach().cpu().numpy(), compact_nodes=False)
-        # near = query_tree.query_ball_tree(self.tree, self.alpha)
-        near = self.tree.query_ball_point(x.detach().cpu().numpy(), self.alpha, workers=16)
-        rows, cols = [], []
-        for i,near_i in enumerate(near):
-            rows.append(torch.full( (len(near_i),), fill_value=i, dtype=torch.int))
-            cols.append(torch.tensor(near_i, dtype=torch.int))
-        rows = torch.cat(rows)
-        cols = torch.cat(cols)
+        near = self.tree.query_ball_point(x.detach().cpu().numpy(), self.alpha, workers=-1)
+        counts = np.fromiter((len(n) for n in near), dtype=np.int32)
+        rows = np.repeat(np.arange(len(near), dtype=np.int32), counts)
+        cols = np.concatenate(near).astype(np.int32, copy=False)
+        rows = torch.from_numpy(rows)
+        cols = torch.from_numpy(cols)
         dist = torch.norm(x[rows,:] - self.points[cols, :], dim=1)
         values = self.weights[cols] * self.rbf(dist)
         rbf_values = torch.zeros(n_queries)

@@ -19,7 +19,7 @@ if __name__ == "__main__":
     argument_parser.add_argument("-s", "--support-size", type=float, default=1.1, help="support size sigma.")
     argument_parser.add_argument("-prune", type=float, default=0., help="pruning threshold for small RBF weights. If set to 0., nothing will be pruned.")
     argument_parser.add_argument("--rbf-shape-id", type=int, default=1, help="shape of the RBF function to consider. Default is 1 for (1-r)^2. See src/rbf.py to see all the shapes.")
-    argument_parser.add_argument("--query-batch-size", type=int, default=10_000)
+    argument_parser.add_argument("--query-batch-size", type=int, default=50_000)
     argument_parser.add_argument("--implicit", action="store_true")
     args = argument_parser.parse_args()
 

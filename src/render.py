@@ -22,7 +22,7 @@ def render_detail_field_2D(
 
     pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
     dist_values = IL.utils.forward_in_batches(neural_model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
-    detail_values = IL.utils.forward_in_batches(detail_model, pts, "cpu", compute_grad=False, batch_size=batch_size, use_tqdm=True)
+    detail_values = IL.utils.forward_in_batches(detail_model, pts, "cpu", compute_grad=False, batch_size=100_000, use_tqdm=True)
     dist_values = np.squeeze(dist_values)
     detail_values = np.squeeze(detail_values)
     total_values = dist_values + detail_values
@@ -65,7 +65,7 @@ def render_detail_field_3D(
         iso_path: str, support_path: str, 
         neural_model, details, 
         domain : M.geometry.AABB, device: str, res: int, 
-        batch_size: int = 10_000, 
+        batch_size: int = 50_000, 
         ignore_detail_threshold: float = 10.
     ):
     print("Extract final surface with marching cubes")
@@ -83,7 +83,7 @@ def render_detail_field_3D(
     n_total = pts.shape[0]
     print(f"Detail needed for {n_detail}/{n_total} points ({100*n_detail/n_total:.1f}%)")
     print("Compute detail values where needed")
-    detail_values_low_dist = IL.utils.forward_in_batches(details, pts_low_dist, "cpu", compute_grad=False, batch_size=batch_size, use_tqdm=True)
+    detail_values_low_dist = IL.utils.forward_in_batches(details, pts_low_dist, "cpu", compute_grad=False, batch_size=100_000, use_tqdm=True)
     
     detail_values = np.zeros_like(dist_values)
     detail_values[low_dist] = detail_values_low_dist
@@ -164,8 +164,8 @@ def render_detail_field_2D_implicit(contour_path, detail_path, support_path, mod
     Y = np.linspace(domain.mini[1], domain.maxi[1], resY)
 
     pts = np.hstack((np.meshgrid(X,Y))).swapaxes(0,1).reshape(2,-1).T
-    dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size)
-    detail_values = details(pts)
+    dist_values = IL.utils.forward_in_batches(model, pts, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
+    detail_values = IL.utils.forward_in_batches(details, pts, "cpu", compute_grad=False, batch_size=100_000, use_tqdm=True)
     total_values = np.concatenate(dist_values) + detail_values
 
     if contour_path is not None:
@@ -217,7 +217,7 @@ def render_detail_field_3D_implicit(iso_path, model, displacement_field, domain 
     n_total = pts.shape[0]
     print(f"Detail needed for {n_detail}/{n_total} points ({100*n_detail/n_total:.1f}%)")
 
-    displacement_values = IL.utils.forward_in_batches(displacement_field, pts_low_dist, "cpu", compute_grad=False, batch_size=200_000, use_tqdm=True)
+    displacement_values = IL.utils.forward_in_batches(displacement_field, pts_low_dist, "cpu", compute_grad=False, batch_size=100_000, use_tqdm=True)
     pts_disp = pts_low_dist + grad0[low_dist,:]*displacement_values[:, np.newaxis]/np.linalg.norm(grad0[low_dist,:], axis=1)[:,np.newaxis]
     dist_values_with_disp = IL.utils.forward_in_batches(model, pts_disp, device, compute_grad=False, batch_size=batch_size, use_tqdm=True)
     dist_values_with_disp = np.squeeze(dist_values_with_disp)

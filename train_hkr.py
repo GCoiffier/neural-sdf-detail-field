@@ -15,12 +15,12 @@ if __name__ == "__main__":
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("input_geometry_file", type=str, help="path to the input geometry file. Supported file types are .obj, .mesh, .stl and .geogram_ascii")
     argument_parser.add_argument("-o", "--output-dir", type=str, default="", help="name of the output folder")
-    argument_parser.add_argument("-np", "--n-points", type=int, default=300_000)
+    argument_parser.add_argument("-np", "--n-points", type=int, default=500_000)
 
     argument_parser.add_argument("--optimizer", type=str, choices=["adam", "muon", "sgd"], default="muon")
     argument_parser.add_argument("--learning-rate", type=float, default=1e-4)
-    argument_parser.add_argument("--batch-size", type=int, default=1000)
-    argument_parser.add_argument("--test-batch-size", type=int, default=5000)
+    argument_parser.add_argument("--batch-size", type=int, default=5_000)
+    argument_parser.add_argument("--test-batch-size", type=int, default=50_000)
     argument_parser.add_argument("-ne", "--n-epochs", type=int, default=300, help="number of epochs")
     argument_parser.add_argument("--checkpoint-freq", type=int, default=100, help="frequency at which the model is saved on the disk (in terms of number of epochs)")
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         points_pos = points_pos[:n_neg, :]
     points = np.concatenate((points_pos, points_neg))
     val = np.concatenate((np.ones(min(n_pos,n_neg)), -np.ones(min(n_pos,n_neg))))
-    train_data = IL.data.make_tensor_dataset((points, val), DEVICE) 
+    train_data = IL.data.make_tensor_dataset((points, val)) 
 
     pc = M.mesh.from_arrays(points)
     pc.vertices.register_array_as_attribute("occ", val)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             super().__init__()
             self.when = when
 
-        def callOnBeginTrain(self, trainer, model):
+        def callOnBeginEpoch(self, trainer, model):
             epoch = trainer.metrics["epoch"]
             if epoch in self.when:
                 trainer.lossfun.lmbd = self.when[epoch]
@@ -128,6 +128,6 @@ if __name__ == "__main__":
             domain = None
         trainer.add_callbacks(callbacks.MarchingCubeCB(OUTPUT_DIR, args.n_epochs, res=300, domain=domain, iso=0.))
 
-    trainer.set_training_data(train_data)
+    trainer.set_training_data(train_data, num_workers=0)
     trainer.train(model)
     torch.save(model.state_dict(), os.path.join(OUTPUT_DIR, "weights_final.pt"))
