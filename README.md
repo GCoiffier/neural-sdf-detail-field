@@ -79,7 +79,7 @@ python experiments/partial_detail_field.py
 ### Changing the RBF kernel function
 ```bash
 python train_hkr.py inputs/armadillo.obj
-python experiments/rbf_shape.py
+python experiments/rbf_shape.py output/armadillo/hkr
 ```
 
 
