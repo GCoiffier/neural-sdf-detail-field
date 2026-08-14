@@ -33,7 +33,6 @@ Input data used in this project can be downloaded from:
 - The Stanford 3D Scanning Repository: [https://graphics.stanford.edu/data/3Dscanrep/](https://graphics.stanford.edu/data/3Dscanrep/)
 - [https://threedscans.com/](https://threedscans.com/)
 - Designs from user YahooJapan on thingiverse: [https://www.thingiverse.com/YahooJAPAN/designs](https://www.thingiverse.com/YahooJAPAN/designs)
-- Sample meshes from [Meshlab](https://www.meshlab.net): [https://www.meshlab.net/data/sample_meshes.zip](https://www.meshlab.net/data/sample_meshes.zip)
 - Thingi10k: [https://ten-thousand-models.appspot.com/](https://ten-thousand-models.appspot.com/)
 
 Our code supports input in the form of `.stl`, `.obj`, `.ply`, `.mesh` and `.geogram_ascii` files. Output meshes are given as `.obj` file while debug meshes are given as `.geogram_ascii` files, which are meant to be read by the [GraphiteThree](https://github.com/BrunoLevy/GraphiteThree) software.
